@@ -1,0 +1,350 @@
+Index: App/controllers/Pages.php
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- App/controllers/Pages.php	(date 1580127698904)
++++ App/controllers/Pages.php	(date 1580127698904)
+@@ -0,0 +1,17 @@
++<?php
++
++
++class Pages extends Controller
++{
++    /**
++     * Page constructor.
++     */
++    public function __construct()
++    {
++    }
++
++    public function index() {
++        $data = array('title' => 'Welcome');
++        $this->view('pages/index', $data);
++    }
++}
+\ No newline at end of file
+Index: App/controllers/Posts.php
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- App/controllers/Posts.php	(date 1580127760874)
++++ App/controllers/Posts.php	(date 1580127760874)
+@@ -0,0 +1,0 @@
+Index: App/libraries/Core.php
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- App/libraries/Core.php	(date 1579771873766)
++++ App/libraries/Core.php	(date 1579771873766)
+@@ -0,0 +1,39 @@
++<?php
++
++
++class Core
++{
++  protected $currentController = 'Pages';
++  protected $currentMethod = 'index';
++  protected $params = array();
++  public function __construct()
++  {
++    $url = $this->getUrl();
++    // controller
++    if(file_exists('../app/controllers/'.ucwords($url[0]).'.php')){
++      $this->currentController = ucwords($url[0]);
++      unset($url[0]);
++    }
++    require_once '../app/controllers/'.$this->currentController.'.php';
++    $this->currentController = new $this->currentController;
++    // method
++    if(method_exists($this->currentController, $url[1])){
++      $this->currentMethod = $url[1];
++      unset($url[1]);
++    }
++    // params
++    $this->params = $url ? array_values($url) : array();
++    // call a callback function with url parameters - controller, method and params
++    call_user_func_array(array($this->currentController, $this->currentMethod), $this->params);
++  }
++
++  public function getUrl(){
++    if(isset($_GET['url'])){
++      $url = $_GET['url'];
++      $url = rtrim($url, '/');
++      $url = filter_var($url, FILTER_SANITIZE_URL);
++      $url = explode('/', $url);
++      return $url;
++    }
++  }
++}
+\ No newline at end of file
+Index: App/libraries/Controller.php
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- App/libraries/Controller.php	(date 1579771884758)
++++ App/libraries/Controller.php	(date 1579771884758)
+@@ -0,0 +1,19 @@
++<?php
++
++
++class Controller
++{
++  // load model
++  public function model($model){
++    require_once '../app/models/'.$model.'.php';
++    return new $model();
++  }
++  // load view
++  public function view($view, $data = array()){
++    if(file_exists('../app/views/'.$view.'.php')){
++      require_once '../app/views/'.$view.'.php';
++    } else {
++      die('View '.$view.' does not exists<br>');
++    }
++  }
++}
+\ No newline at end of file
+Index: App/libraries/database.php
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- App/libraries/database.php	(date 1580127727830)
++++ App/libraries/database.php	(date 1580127727830)
+@@ -0,0 +1,73 @@
++<?php
++
++
++class Database
++{
++    private $host = DB_HOST;
++    private $user = DB_USER;
++    private $pass = DB_PASS;
++    private $dbname = DB_NAME;
++
++    private $dbh;
++    private $stmt;
++    private $error;
++
++    /**
++     * Database constructor.
++     */
++    public function __construct()
++    {
++        $dsn = 'mysql:host='.$this->host.';dbname='.$this->dbname;
++        $options = array(
++            PDO::ATTR_PERSISTENT => true,
++            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION
++        );
++        try {
++            $this->dbh = new PDO($dsn, $this->user, $this->pass, $options);
++        } catch (PDOException $e){
++            $this->error = $e->getMessage();
++            echo $this->error.'<br>';
++        }
++    }
++
++    public function query($sql){
++        $this->stmt = $this->dbh->prepare($sql);
++    }
++
++    public function bind($param, $value, $type=null){
++        if(is_null($type)){
++            switch (true){
++                case is_int($value):
++                    $type = PDO::PARAM_INT;
++                    break;
++                case is_bool($value):
++                    $type = PDO::PARAM_BOOL;
++                    break;
++                case is_null($value):
++                    $type = PDO::PARAM_NULL;
++                    break;
++                default:
++                    $type = PDO::PARAM_STR;
++            }
++        }
++        $this->stmt->bindValue($param, $value, $type);
++    }
++
++    public function execute(){
++        $this->stmt->execute();
++    }
++
++    public function getAll(){
++        $this->execute();
++        return $this->stmt->fetchAll(PDO::FETCH_OBJ);
++    }
++
++    public function getOne(){
++        $this->execute();
++        return $this->stmt->fetch(PDO::FETCH_OBJ);
++    }
++
++    public function rowCount(){
++        return $this->stmt->rowCount();
++    }
++}
+\ No newline at end of file
+Index: App/config/constants.php
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- App/config/constants.php	(date 1579771799858)
++++ App/config/constants.php	(date 1579771799858)
+@@ -0,0 +1,14 @@
++<?php
++// projekti nimi
++define('PROJECT_NAME', 'pvk');
++// juur url
++define('URLROOT', 'http://'.$_SERVER['HTTP_HOST'].'/'.PROJECT_NAME);
++// rakenduse juurkataloog
++define('APPROOT', dirname(dirname(__FILE__)));
++
++
++//db parameetrid
++define("DB_HOST", "localhost");
++define("DB_USER","root");
++define("DB_PASS", "");
++define("DB_NAME", "pdo");
+\ No newline at end of file
+Index: App/views/inc/footer.php
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- App/views/inc/footer.php	(date 1579771982776)
++++ App/views/inc/footer.php	(date 1579771982776)
+@@ -0,0 +1,3 @@
++<script src="<?php echo URLROOT;?>/js/main.js"></script>
++</body>
++</html>
+\ No newline at end of file
+Index: App/views/inc/header.php
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- App/views/inc/header.php	(date 1579772148920)
++++ App/views/inc/header.php	(date 1579772148920)
+@@ -0,0 +1,11 @@
++<!doctype html>
++<html lang="en">
++<head>
++  <meta charset="UTF-8">
++  <meta name="viewport"
++        content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
++  <meta http-equiv="X-UA-Compatible" content="ie=edge">
++  <link rel="stylesheet" href="<?php echo URLROOT;?>/css/style.css">
++  <title><?php echo PROJECT_NAME;?></title>
++</head>
++<body>
+\ No newline at end of file
+Index: App/views/pages/index.php
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- App/views/pages/index.php	(date 1579772176902)
++++ App/views/pages/index.php	(date 1579772176902)
+@@ -0,0 +1,7 @@
++<?php
++  require_once APPROOT.'/views/inc/header.php';
++?>
++<h1><?php echo $data['title']; ?></h1>
++<?php
++require_once APPROOT.'/views/inc/footer.php';
++?>
+\ No newline at end of file
+Index: Public/index.php
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- Public/index.php	(date 1580127914997)
++++ Public/index.php	(date 1580127914997)
+@@ -0,0 +1,5 @@
++<?php
++error_reporting(0);
++require_once '../app/bootstrap.php';
++// loome Core objekti raamatukogu kasutamiseks
++$init = new Core();
+\ No newline at end of file
+Index: App/.htaccess
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- App/.htaccess	(date 1579772729233)
++++ App/.htaccess	(date 1579772729233)
+@@ -0,0 +1,0 @@
+Index: Public/.htaccess
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- Public/.htaccess	(date 1579772789913)
++++ Public/.htaccess	(date 1579772789913)
+@@ -0,0 +1,8 @@
++<IfModule mod_rewrite.c>
++    Options -Multiviews
++    RewriteEngine On
++    RewriteBase /pvk/public
++    RewriteCond %{REQUEST_FILENAME} !-d
++    RewriteCond %{REQUEST_FILENAME} !-f
++    RewriteRule ^(.+)$ index.php?url=$1 [QSA,L]
++</IfModule>
+\ No newline at end of file
+Index: App/testimine/test.php
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- App/testimine/test.php	(date 1579770093718)
++++ App/testimine/test.php	(date 1579770093718)
+@@ -0,0 +1,0 @@
+Index: Public/css/style.css
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- Public/css/style.css	(date 1578580783371)
++++ Public/css/style.css	(date 1578580783371)
+@@ -0,0 +1,0 @@
+Index: App/bootstrap.php
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- App/bootstrap.php	(date 1579772705158)
++++ App/bootstrap.php	(date 1579772705158)
+@@ -0,0 +1,7 @@
++<?php
++// laadime vajalikud konstandid
++require_once 'config/constants.php';
++// laadime vajalikud raamatukogud
++spl_autoload_register(function ($className) {
++  require_once 'libraries/'.$className.'.php';
++});
+\ No newline at end of file
+Index: Public/js/main.js
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- Public/js/main.js	(date 1578580809659)
++++ Public/js/main.js	(date 1578580809659)
+@@ -0,0 +1,0 @@
+Index: App/models/page.php
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- App/models/page.php	(date 1580127870811)
++++ App/models/page.php	(date 1580127870811)
+@@ -0,0 +1,0 @@
